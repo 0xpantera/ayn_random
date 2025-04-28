@@ -30,7 +30,7 @@ mod Lottery {
     use ayn_random::utils::helpers;
     use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry,
+        Map, StorageMapReadAccess, StorageMapWriteAccess,
         StoragePointerReadAccess, StoragePointerWriteAccess,
     };
     use starknet::{ContractAddress, get_block_number, get_caller_address, get_contract_address};
@@ -89,7 +89,8 @@ mod Lottery {
 
         // Buy a ticket for the lottery current round, first ticket ID is 0 and the last one is 999
         // A ticket costs 1 ETH, the user should approve spending for this contract prior to calling
-        // this function @return u256: Ticket ID
+        // this function 
+        // @return u256: Ticket ID
         fn buy_ticket(ref self: ContractState) -> u256 {
             let caller = get_caller_address();
             let ticket_id = self.tickets.read();
@@ -113,8 +114,8 @@ mod Lottery {
 
         // Request the winner of the lottery only when at least 10 tickets were bought
         // @param seed: Seed for the randomness
-        // @param callback_address: Address that will receive the callback from the randomness
-        // contract @param callback_fee_limit: Fee limit for the randomness request
+        // @param callback_address: Address that will receive the callback from the randomness contract
+        // @param callback_fee_limit: Fee limit for the randomness request
         // @param publish_delay: Delay for the randomness
         // @param num_words: Number of words to be requested for the randomness
         // @param calldata: Calldata for the randomness request
@@ -127,8 +128,7 @@ mod Lottery {
             num_words: u64,
             calldata: Array<felt252>,
         ) {
-            // Lottery should be ended, have at least 10 participants, and request should not be
-            // made
+            // Lottery should have ended, have at least 10 participants, and request not made
             assert(!self.is_lottery_ended.read(), 'Lottery ended');
             assert(self.tickets.read() >= 9, 'Not enough participants');
             assert(!self.is_request_active.read(), 'Request already made');
@@ -161,6 +161,9 @@ mod Lottery {
 
             // Safeguard for the randomness request fullfillment
             let current_block_number = get_block_number();
+            println!("Lottery block number: {}", current_block_number);
+            println!("Publish delay: {}", publish_delay);
+            println!("Min block num storage: {}", current_block_number + publish_delay);
             self.min_block_number_storage.write(current_block_number + publish_delay);
             self.is_request_active.write(true);
         }
@@ -187,6 +190,8 @@ mod Lottery {
             // The current block should be within `publish_delay` of the request block
             let current_block_number = get_block_number();
             let min_block_number = self.min_block_number_storage.read();
+            println!("Lottery block number receive: {}", current_block_number);
+            println!("Min block num storage receive: {}", min_block_number);
             assert(min_block_number <= current_block_number, 'Not enough delay');
 
             // We use only 1 word for the randomness, and cast it to u256

