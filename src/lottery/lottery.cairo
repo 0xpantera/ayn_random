@@ -161,9 +161,6 @@ mod Lottery {
 
             // Safeguard for the randomness request fullfillment
             let current_block_number = get_block_number();
-            println!("Lottery block number: {}", current_block_number);
-            println!("Publish delay: {}", publish_delay);
-            println!("Min block num storage: {}", current_block_number + publish_delay);
             self.min_block_number_storage.write(current_block_number + publish_delay);
             self.is_request_active.write(true);
         }
@@ -190,8 +187,6 @@ mod Lottery {
             // The current block should be within `publish_delay` of the request block
             let current_block_number = get_block_number();
             let min_block_number = self.min_block_number_storage.read();
-            println!("Lottery block number receive: {}", current_block_number);
-            println!("Min block num storage receive: {}", min_block_number);
             assert(min_block_number <= current_block_number, 'Not enough delay');
 
             // We use only 1 word for the randomness, and cast it to u256
