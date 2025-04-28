@@ -1,4 +1,4 @@
-use starknet::{ClassHash, ContractAddress};
+use starknet::ContractAddress;
 
 
 #[starknet::interface]
@@ -42,12 +42,12 @@ trait IExampleRandomness<TContractState> {
 mod VRFMock {
     //use array::{ArrayTrait, SpanTrait};
     use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     //use starknet::info::get_block_number;
     use starknet::{get_caller_address, get_contract_address};
-    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     //use traits::{Into, TryInto};
     use super::{
-        ClassHash, ContractAddress, IExampleRandomnessDispatcher, IExampleRandomnessDispatcherTrait,
+        ContractAddress, IExampleRandomnessDispatcher, IExampleRandomnessDispatcherTrait,
         IRandomness,
     };
 

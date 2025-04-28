@@ -16,7 +16,7 @@ mod SimpleGame {
 
     #[storage]
     struct Storage {
-        eth: IERC20Dispatcher // The token of the game
+        eth: IERC20Dispatcher
     }
 
     #[constructor]
@@ -26,7 +26,7 @@ mod SimpleGame {
 
     #[abi(embed_v0)]
     impl SimpleGameImpl of super::ISimpleGame<ContractState> {
-        // Play the game by submitting a guess.. Maybe you will win and maybe not :)
+        // Play the game by submitting a guess
         fn play(self: @ContractState, guess: u256) {
             // Playing the game costs 1 ETH
             self

